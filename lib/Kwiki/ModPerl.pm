@@ -1,72 +1,58 @@
 package Kwiki::ModPerl;
-use warnings;
-use strict;
-use Kwiki '-Base';
+use Kwiki -Base;
 use Apache::Constants qw(:response :common);
 
-our $VERSION = "0.03";
+our $VERSION = "0.04";
 
-# create a new kwiki
-sub our_kwiki {
-    my $path = shift;
-    $self->new->debug;
-}
-
-# create a new hub and initialize it
-sub our_hub {
+sub get_new_hub {
     my $path = shift;
     chdir $path;
-    my $hub = $self->our_kwiki($path)->load_hub(
-        "config.yaml", -plugins => "plugins");
-    $hub->load_class('config')->script_name('');
+    my $hub = $self->new->debug->load_hub(
+        "config.yaml", -plugins => "plugins",
+    );
     return $hub;
 }
 
-sub handler ($$) {
+sub handler : method {
     my ($self, $r) = @_;
 
     # only handle the directory specified in the apache config.
     # return declined to let Apache serve regular files.
     my $path = $r->dir_config('KwikiBaseDir');
-    return DECLINED unless $r->filename eq $path;
+    my $rpath = $r->filename;
+    # modperl 2 gives trailing slash
+    $rpath =~ s{/$}{};
+    return DECLINED unless $rpath eq $path;
+    my $hub = $self->get_new_hub($path);
 
-    # grab our objects
-    my $hub = $self->our_hub($path);
-    my $html = $hub->process;
+    # This would generate an absolute redirection URI
+    # that makes all browser (especially Safari) happy
+    $hub->config->script_name($r->uri);
 
-    # now we're just copying most of Kwiki::process()
-    if ( defined $html ) {
+    my $html = eval {
+        $hub->pre_process;
+        $hub->process;
+    };
+    return $self->print_error($@) if $@;
 
-        # redirect in a mod_perl way.
-        # without $r->uri, after edits Kwiki will redirect to URIs like
-        # "?HomePage" -- browsers like IE and FireFox handle this just fine,
-        # but Safari explodes. We need to prepend the base URI, even if it's
-        # just "/" or "/kwiki/" to get "/kwiki/?HomePage".
-        if ( ref $html ) {
-            $r->headers_out->set(Location=>$r->uri.$html->{redirect});           
-            $r->headers_out->set(URI=>$r->uri.$html->{redirect});           
-            $r->status(REDIRECT);
-            $r->send_http_header;
-        }
-
-        # looks like we've got a regular old page.
-        else {
-
-            # eventually this calls CGI::header(), which has mod_perl support
-            # built into it! yeah, what a lifesaver!
-            $hub->load_class('cookie')->header;
-            $self->utf8_encode($html);
-            print $html;
-        }
+    if (defined $html) {
+        $hub->headers->print;
+        $self->utf8_encode($html);
+        Apache->request->print($html);
     }
 
-    # do any modules hook on post_processing?
     $hub->post_process;
 
-    return OK;          
+    return OK;
 }
 
-1;
+sub print_error {
+    my $error = $self->html_escape(shift);
+    require CGI;
+    print CGI::header();
+    print "<h1>Software Error:</h1><pre>\n$error</pre>";
+    return OK;
+}
 
 __DATA__
 
@@ -100,25 +86,36 @@ This module allows you to use Kwiki as a mod_perl content handler.
 
 =over 4
 
-=item * B<Multiple Kwikis are supported.> As long as each Kwiki has its own
-KwikiBaseDir, you're golden.
+=item * B<Multiple Kwikis are supported.>
 
-=item * B<You might need a redirect for the Kwiki base directory.> For example,
-if your Kwiki is at the location C</kwiki/> and you browse to C</kwiki>
-(without the trailing slash), you'll definitely experience some weirdness.
-I highly suggest adding a redirect:
+As long as each Kwiki has its own KwikiBaseDir, you're golden.
+
+=item * B<You might need a redirect for the Kwiki base directory.>
+
+For example, if your Kwiki is at the location C</kwiki/> and you
+browse to C</kwiki> (without the trailing slash), you'll definitely
+experience some weirdness.  I highly suggest adding a redirect:
 
     RedirectMatch ^/kwiki$ http://example.com/kwiki/
 
-=item * B<Yes, viewing F<index.cgi> shows the source of the CGI script.> Don't worry, it's not executing it. It probably similar to the L<index.cgi included with Kwiki|http://search.cpan.org/src/INGY/Kwiki-0.33/lib/Kwiki/Files.pm>, anyway.
 
-=item * B<You might need to restart Apache.> Module additions and removal seem to work.
+=item * B<Yes, viewing F<index.cgi> shows the source of the CGI script.>
+
+Don't worry, it's not executing it. It probably similar to the
+L<index.cgi included with Kwiki|http://search.cpan.org/src/INGY/Kwiki-0.33/lib/Kwiki/Files.pm>,
+anyway.
+
+=item * B<You might need to restart Apache.>
+
+Otherwise module additions and removal might not be working.
 
 =back
 
 =head1 AUTHORS
 
 Ian Langworth <langworth.com> 
+
+Now Maintained by Kang-min Liu <gugod@gugod.org>
 
 =head1 SEE ALSO
 
@@ -127,6 +124,7 @@ L<Kwiki>
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (C) 2004 by Ian Langworth
+Copyright (C) 2005 by Kang-min Liu
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

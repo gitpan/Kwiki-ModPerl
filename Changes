@@ -1,4 +1,10 @@
 ---
+version: 0.04
+date:    Sun Jan 23 04:02:10 CST 2005
+changes:
+- work with mod_perl 2
+- Safari-friendly URI redirection
+---
 version: 0.03
 date:    Thu Aug 19 17:53:21 EDT 2004
 changes:
