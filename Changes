@@ -1,3 +1,8 @@
+version: 0.06
+date:    Wed Mar 30 09:04:15 CST 2005
+changes:
+- more compatible on mod_perl and mod_perl2
+- cooluri support (even if it's not installed) [halkeye]
 ---
 version: 0.05
 date:    Tue Feb 15 21:56:29 CST 2005

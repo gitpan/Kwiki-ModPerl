@@ -1,8 +1,29 @@
 package Kwiki::ModPerl;
 use Kwiki -Base;
-use Apache::Constants qw(:response :common);
 
-our $VERSION = "0.05";
+our $VERSION = "0.06";
+
+use mod_perl;
+use constant MP2 => $mod_perl::VERSION < 1.99 ? 0 : 1;
+
+BEGIN {
+    if( MP2 ) {
+        require Apache::RequestRec;
+        require Apache::RequestUtil;
+        require Apache::RequestIO;
+        require Apache::Const;
+        Apache::Const->import qw(:common);
+    } else {
+        require Apache;
+        require Apache::Constants;
+        Apache::Constants->import( qw/:response :common/);
+    }
+}
+
+sub handler_mp1 ($$)     { &run }
+sub handler_mp2 : method { &run }
+
+*handler = MP2 ? \&handler_mp2 : \&handler_mp1;
 
 sub get_new_hub {
     my $path = shift;
@@ -13,15 +34,20 @@ sub get_new_hub {
     return $hub;
 }
 
-sub handler : method {
-    my ($self, $r) = @_;
+sub run {
+    my $r = shift;
 
     # only handle the directory specified in the apache config.
     # return declined to let Apache serve regular files.
     my $path = $r->dir_config('KwikiBaseDir');
+
     # modperl 2 gives trailing slash
     my $rpath = $r->filename;
     $rpath =~ s/(\/index.cgi)?\/?$//;
+
+    # CoolURI Handling
+    my $ret = $self->coolURI_handler($r, $rpath, $path);
+    $rpath = $ret if $ret;
 
     # Support sub-view. sub_view = sub-dir with the "registry.dd" file.
     $path = $rpath if(io->catfile($rpath,"registry.dd")->exists);
@@ -29,11 +55,11 @@ sub handler : method {
     return DECLINED unless $rpath eq $path;
     my $hub = $self->get_new_hub($path);
 
-    my $html = eval {
-        $hub->pre_process;
-        $hub->process;
-    };
-    return $self->print_error($@,$r,$hub) if $@;
+    eval { $hub->pre_process }
+        or $self->print_error($@,$r,$hub,'Pre-Process Error');
+
+    my $html = eval { $hub->process };
+    return $self->print_error($@,$r,$hub,'Process Error') if $@;
 
     if (defined $html) {
         $hub->headers->print;
@@ -42,14 +68,15 @@ sub handler : method {
             $r->print($html);
         }
     }
-    $hub->post_process;
+    eval { $hub->post_process }
+        or $self->print_error($@,$r,$hub,'Post-Process Error');
+
     return ($hub->headers->redirect)?REDIRECT:OK;
 }
 
 sub print_error {
     my $error = $self->html_escape(shift);
-    my $r = shift;
-    my $hub = shift;
+    my ($r,$hub,$msg) = @_;
     $hub->headers->content_type('text/html');
     $hub->headers->charset('UTF-8');
     $hub->headers->expires('now');
@@ -57,11 +84,37 @@ sub print_error {
     $hub->headers->cache_control('no-cache');
     $hub->headers->redirect('');
     $hub->headers->print;
-    $r->print("<h1>Software Error:</h1><pre>\n$error</pre>");
+    $r->print("<h1>Software Error:</h1><h2>$msg</h2><pre>\n$error</pre>");
     return OK;
 }
 
-__DATA__
+sub coolURI_handler {
+    my ($r, $rpath, $path) = @_;
+
+    # if its a real file, show it 
+    return undef if (-f $rpath or -l $rpath);
+
+    # If we have args, we are doing something else.
+    return $path if ($r->args and $r->args =~ /\w+/);
+
+    # Okay, now lets do some CoolURI stuff
+    my $pagename = $rpath;
+    $pagename =~ s|^$path||;
+
+    if ($pagename =~ /\w+/) {
+        $pagename =~ s{/+}{}g;
+        my $query_string = "action=display&page_name=$pagename";
+        $r->subprocess_env(QUERY_STRING=>$query_string);
+        $ENV{QUERY_STRING} = $query_string;
+        $r->path_info('');
+        $r->args($query_string);
+        $rpath =~ s|$pagename$||;
+        return $path;
+    }
+    return undef;
+}
+
+__END__
 
 =head1 NAME
 
@@ -84,6 +137,11 @@ If you have a custom F<lib> directory for your Kwiki:
  <Perl>
    use lib '/path/to/webroot/kwiki/lib';
  </Perl>
+
+Also if you're using mod_perl2, please add the following line
+into your httpd.conf:
+
+  PerlModule Apache2
 
 =head1 DESCRIPTION
 
