@@ -4,44 +4,24 @@ use strict;
 use Kwiki '-Base';
 use Apache::Constants qw(:response :common);
 
-our $VERSION = "0.02";
+our $VERSION = "0.03";
 
-#----------------------------------------------------------------------
-# SINGLETON CLASSES
-#
-# Hopefully I can speed up Kwiki by creating as few Kwiki and Kwiki::Hub
-# instances as humanly possible. The singleton classes are based on the
-# KwikiBaseDir so that we can have multiple Kwiki instances.
-#----------------------------------------------------------------------
-our %KWIKIS = ();
+# create a new kwiki
 sub our_kwiki {
     my $path = shift;
-    $KWIKIS{$path} ||= $self->new->debug;
+    $self->new->debug;
 }
 
-our %HUBS = ();
+# create a new hub and initialize it
 sub our_hub {
     my $path = shift;
-    return $HUBS{$path} if $HUBS{$path};
-
-    # as far as i know, Kwiki doesn't have any base-directory support, so we'll
-    # do it ourselves
     chdir $path;
-
-    # copied from index.cgi
     my $hub = $self->our_kwiki($path)->load_hub(
         "config.yaml", -plugins => "plugins");
-
-    # our script name certainly isn't index.cgi -- or worse, as commonly found
-    # in mod_perl, "httpd.conf". 
     $hub->load_class('config')->script_name('');
-
     return $hub;
 }
 
-#----------------------------------------------------------------------
-# MOD_PERL HANDLER
-#----------------------------------------------------------------------
 sub handler ($$) {
     my ($self, $r) = @_;
 
@@ -50,7 +30,7 @@ sub handler ($$) {
     my $path = $r->dir_config('KwikiBaseDir');
     return DECLINED unless $r->filename eq $path;
 
-    # grab our singleton classes
+    # grab our objects
     my $hub = $self->our_hub($path);
     my $html = $hub->process;
 
@@ -114,9 +94,7 @@ If you have a custom F<lib> directory for your Kwiki:
 
 =head1 DESCRIPTION
 
-This module allows you to use Kwiki as a mod_perl content handler. The handler
-keeps singleton classes for each Kwiki you have and hopefully keeping as much
-loaded into the persistant interpreter as it can.
+This module allows you to use Kwiki as a mod_perl content handler.
 
 =head1 FEATURES, BUGS and NOTES
 
@@ -133,6 +111,8 @@ I highly suggest adding a redirect:
     RedirectMatch ^/kwiki$ http://example.com/kwiki/
 
 =item * B<Yes, viewing F<index.cgi> shows the source of the CGI script.> Don't worry, it's not executing it. It probably similar to the L<index.cgi included with Kwiki|http://search.cpan.org/src/INGY/Kwiki-0.33/lib/Kwiki/Files.pm>, anyway.
+
+=item * B<You might need to restart Apache.> Module additions and removal seem to work.
 
 =back
 

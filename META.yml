@@ -1,5 +1,5 @@
 name: Kwiki-ModPerl
-version: 0.02
+version: 0.03
 abstract: enable Kwiki to work under mod_perl
 author: Ian Langworth <langworth.com>
 license: perl

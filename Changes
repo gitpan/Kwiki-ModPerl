@@ -1,4 +1,10 @@
 ---
+version: 0.03
+date:    Thu Aug 19 17:53:21 EDT 2004
+changes:
+- removed object caching stuff because it doesn't do much
+- moved chdir [cpan #7414]
+---
 version: 0.02
 date:    Thu Aug 19 01:23:58 EDT 2004
 changes:
