@@ -4,7 +4,7 @@ use strict;
 use Kwiki '-Base';
 use Apache::Constants qw(:response :common);
 
-our $VERSION = "0.01";
+our $VERSION = "0.02";
 
 #----------------------------------------------------------------------
 # SINGLETON CLASSES
