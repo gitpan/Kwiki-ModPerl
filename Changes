@@ -1,4 +1,11 @@
 ---
+version: 0.05
+date:    Tue Feb 15 21:56:29 CST 2005
+changes:
+- support sub_view automatically
+- request to "index.cgi" doesn't show it's source anymore
+- print_error() doesn't require CGI.pm again.
+---
 version: 0.04
 date:    Sun Jan 23 04:02:10 CST 2005
 changes:

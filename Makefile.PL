@@ -2,7 +2,7 @@ use inc::Module::Install;
 
 name('Kwiki-ModPerl');
 abstract('enable Kwiki to work under mod_perl');
-author('Ian Langworth <langworth.com>');
+author('Kang-min Liu <gugod@gugod.org>');
 version_from('lib/Kwiki/ModPerl.pm');
 license('perl');
 

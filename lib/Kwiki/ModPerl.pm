@@ -2,7 +2,7 @@ package Kwiki::ModPerl;
 use Kwiki -Base;
 use Apache::Constants qw(:response :common);
 
-our $VERSION = "0.04";
+our $VERSION = "0.05";
 
 sub get_new_hub {
     my $path = shift;
@@ -19,44 +19,51 @@ sub handler : method {
     # only handle the directory specified in the apache config.
     # return declined to let Apache serve regular files.
     my $path = $r->dir_config('KwikiBaseDir');
-    my $rpath = $r->filename;
     # modperl 2 gives trailing slash
-    $rpath =~ s{/$}{};
+    my $rpath = $r->filename;
+    $rpath =~ s/(\/index.cgi)?\/?$//;
+
+    # Support sub-view. sub_view = sub-dir with the "registry.dd" file.
+    $path = $rpath if(io->catfile($rpath,"registry.dd")->exists);
+
     return DECLINED unless $rpath eq $path;
     my $hub = $self->get_new_hub($path);
-
-    # This would generate an absolute redirection URI
-    # that makes all browser (especially Safari) happy
-    $hub->config->script_name($r->uri);
 
     my $html = eval {
         $hub->pre_process;
         $hub->process;
     };
-    return $self->print_error($@) if $@;
+    return $self->print_error($@,$r,$hub) if $@;
 
     if (defined $html) {
         $hub->headers->print;
-        $self->utf8_encode($html);
-        Apache->request->print($html);
+        unless($r->header_only) {
+            $self->utf8_encode($html);
+            $r->print($html);
+        }
     }
-
     $hub->post_process;
-
-    return OK;
+    return ($hub->headers->redirect)?REDIRECT:OK;
 }
 
 sub print_error {
     my $error = $self->html_escape(shift);
-    require CGI;
-    print CGI::header();
-    print "<h1>Software Error:</h1><pre>\n$error</pre>";
+    my $r = shift;
+    my $hub = shift;
+    $hub->headers->content_type('text/html');
+    $hub->headers->charset('UTF-8');
+    $hub->headers->expires('now');
+    $hub->headers->pragma('no-cache');
+    $hub->headers->cache_control('no-cache');
+    $hub->headers->redirect('');
+    $hub->headers->print;
+    $r->print("<h1>Software Error:</h1><pre>\n$error</pre>");
     return OK;
 }
 
 __DATA__
 
-=head1 NAME 
+=head1 NAME
 
 Kwiki::ModPerl - enable Kwiki to work under mod_perl
 
@@ -64,7 +71,7 @@ Kwiki::ModPerl - enable Kwiki to work under mod_perl
 
  $ kwiki -new /path/to/webroot/kwiki
 
-In your Apache configuration: 
+In your Apache configuration:
 
  <Location /kwiki>
    SetHandler  perl-script
@@ -86,6 +93,10 @@ This module allows you to use Kwiki as a mod_perl content handler.
 
 =over 4
 
+=item * B<Sub-view are supported automatically>
+
+No extra apache configuration is required.
+
 =item * B<Multiple Kwikis are supported.>
 
 As long as each Kwiki has its own KwikiBaseDir, you're golden.
@@ -98,12 +109,12 @@ experience some weirdness.  I highly suggest adding a redirect:
 
     RedirectMatch ^/kwiki$ http://example.com/kwiki/
 
+=item * B<Why index.cgi still shows up in the URL ?>
 
-=item * B<Yes, viewing F<index.cgi> shows the source of the CGI script.>
-
-Don't worry, it's not executing it. It probably similar to the
-L<index.cgi included with Kwiki|http://search.cpan.org/src/INGY/Kwiki-0.33/lib/Kwiki/Files.pm>,
-anyway.
+Don't worry, it's ignored internally, so that it is still handled
+under mod_perl, not as a cgi script. Also, It can make all browser
+happy with relative URI redirection. (Although it shouldn't be a
+relative redirection, should be fixed in Kwiki base in the future).
 
 =item * B<You might need to restart Apache.>
 
@@ -113,7 +124,7 @@ Otherwise module additions and removal might not be working.
 
 =head1 AUTHORS
 
-Ian Langworth <langworth.com> 
+Ian Langworth <langworth.com>
 
 Now Maintained by Kang-min Liu <gugod@gugod.org>
 
