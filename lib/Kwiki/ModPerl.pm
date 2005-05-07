@@ -1,7 +1,7 @@
 package Kwiki::ModPerl;
 use Kwiki -Base;
 
-our $VERSION = "0.06";
+our $VERSION = "0.07";
 
 use mod_perl;
 use constant MP2 => $mod_perl::VERSION < 1.99 ? 0 : 1;
@@ -40,6 +40,8 @@ sub run {
     # only handle the directory specified in the apache config.
     # return declined to let Apache serve regular files.
     my $path = $r->dir_config('KwikiBaseDir');
+    # People might put trailing slashes in their configuration
+    $path =~ s/\/+$//;
 
     # modperl 2 gives trailing slash
     my $rpath = $r->filename;

@@ -1,3 +1,8 @@
+version: 0.07
+date:    
+changes:
+- Fix a bug that default page_name goes wrong if "KwikiBaseDir" contains trailing slashes.
+---
 version: 0.06
 date:    Wed Mar 30 09:04:15 CST 2005
 changes:
