@@ -1,5 +1,10 @@
+version: 0.08
+date:    Fri May 27 15:06:11 CST 2005
+changes:
+- Fix that sub-view are reconized as a page_name in coolURI_handler()
+---
 version: 0.07
-date:    
+date:    Sat May  7 20:33:35 CST 2005
 changes:
 - Fix a bug that default page_name goes wrong if "KwikiBaseDir" contains trailing slashes.
 ---

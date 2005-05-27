@@ -1,24 +1,31 @@
 package Kwiki::ModPerl;
 use Kwiki -Base;
-
-our $VERSION = "0.07";
-
-use mod_perl;
-use constant MP2 => $mod_perl::VERSION < 1.99 ? 0 : 1;
+our $VERSION = "0.08";
 
 BEGIN {
-    if( MP2 ) {
-        require Apache::RequestRec;
-        require Apache::RequestUtil;
-        require Apache::RequestIO;
-        require Apache::Const;
-        Apache::Const->import qw(:common);
+    eval { require mod_perl2 } || require mod_perl;
+    if ( $mod_perl::VERSION >= 1.999021 ) {
+        require Apache2::RequestRec;
+        require Apache2::RequestUtil;
+        require Apache2::RequestIO;
+        require Apache2::Const;
+        Apache2::Const->import qw(:common);
     } else {
-        require Apache;
-        require Apache::Constants;
-        Apache::Constants->import( qw/:response :common/);
+        if ( $mod_perl::VERSION >= 1.99 ) {
+            require Apache::RequestRec;
+            require Apache::RequestUtil;
+            require Apache::RequestIO;
+            require Apache::Const;
+            Apache::Const->import qw(:common);
+        } else {
+            require Apache;
+            require Apache::Constants;
+            Apache::Constants->import( qw/:response :common/);
+        }
     }
 }
+
+use constant MP2 => $mod_perl::VERSION >= 1.99 ? 1 : 0;
 
 sub handler_mp1 ($$)     { &run }
 sub handler_mp2 : method { &run }
@@ -95,6 +102,8 @@ sub coolURI_handler {
 
     # if its a real file, show it 
     return undef if (-f $rpath or -l $rpath);
+    # if it's a dir, it should be a sub-view
+    return undef if -d $rpath;
 
     # If we have args, we are doing something else.
     return $path if ($r->args and $r->args =~ /\w+/);
