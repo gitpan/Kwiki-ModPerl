@@ -1,6 +1,6 @@
 package Kwiki::ModPerl;
 use Kwiki -Base;
-our $VERSION = "0.08";
+our $VERSION = "0.09";
 
 BEGIN {
     eval { require mod_perl2 } || require mod_perl;
@@ -36,7 +36,7 @@ sub get_new_hub {
     my $path = shift;
     chdir $path;
     my $hub = $self->new->debug->load_hub(
-        "config.yaml", -plugins => "plugins",
+        "config*.*", -plugins => "plugins",
     );
     return $hub;
 }

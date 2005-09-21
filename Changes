@@ -1,3 +1,7 @@
+version: 0.09
+date:    Wed Sep 21 16:29:17 CST 2005
+- Fix the issue that it doesn't work with Kwiki::PagePrivacy
+---
 version: 0.08
 date:    Fri May 27 15:06:11 CST 2005
 changes:

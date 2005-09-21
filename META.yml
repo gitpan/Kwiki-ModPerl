@@ -1,5 +1,5 @@
 name: Kwiki-ModPerl
-version: 0.08
+version: 0.09
 abstract: enable Kwiki to work under mod_perl
 author: Kang-min Liu <gugod@gugod.org>
 license: perl
@@ -11,4 +11,4 @@ requires:
 no_index:
   directory:
     - inc
-generated_by: Module::Install version 0.36
+generated_by: Module::Install version 0.37
